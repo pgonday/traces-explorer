@@ -1,0 +1,9 @@
+ESC30m	<span style="color:black">
+ESC31m	<span style="color:red">
+ESC32m	<span style="color:green">
+ESC33m	<span style="color:yellow">
+ESC34m	<span style="color:blue">
+ESC35m	<span style="color:magenta">
+ESC36m	<span style="color:cyan">
+ESC37m	<span style="color:white">
+ESC0m	</span>

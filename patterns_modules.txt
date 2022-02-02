@@ -1,0 +1,18 @@
+0xd05e...4744	LendingPoolAddressesProvider
+0x3ac4...9C19	LendingPoolAddressesProviderRegistry
+0x8dFf...0fcf	LendingPool (Proxy)
+0x6A87...6ac7	LendingPool
+0xA395...555B	LendingPoolCollateralManager
+0x26db...F1F3	LendingPoolConfigurator (Proxy)
+0xf70A...9492	LendingPoolConfigurator
+0x17F7...0dFB	LendingRateOracle
+0x0229...6f2d	AaveOracle
+0x7551...d46d	AaveProtocolDataProvider
+0xbEad...dc97	WETHGateway
+0x357D...BC23	IncentivesController (Proxy)
+0x2C90...aB84	IncentivesController
+0x7734...39e9	AaveCollector (Proxy)
+0xdf4a...0eD7	AaveCollector
+0xce71...c246	MarketsManagerForAave
+0x185a...1aea	PositionsManagerForAave
+0xcc7d...a9b5	ValidationLogic
