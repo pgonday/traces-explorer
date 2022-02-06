@@ -1,51 +1,82 @@
 
-import sys
 import re
+import requests
+import sys
 
-patterns_files = ['patterns_escape_sequences', 'patterns_modules', 'patterns_functions']
-patterns = []
 
-for pfile in patterns_files:
-	with open(pfile + '.txt') as f:
-		for line in f:
-			elements = line.replace('\n', '').split('\t')
-			patterns.append({
-				'search': elements[0],
-				'replace': elements[1]
-			})
+def load_patterns(dict, files):
+	for file in files:
+		with open(file + '.txt') as f:
+			for line in f:
+				elements = line.replace('\n', '').split('\t')
+				dict[elements[0]] = elements[1]
 
-# Variants for tokens:
-# - full address (0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063)
-# - compact address (0x8f3C...A063)
-# - return parameter (0x0000000000000000000000008f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063)
-# - parameter (0000000000000000000000008f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063)
-with open('patterns_tokens.txt') as f:
-	for line in f:
-		elements = line.replace('\n', '').split('\t')
-		search = elements[0]
-		replace = elements[1]
-		patterns.append({'search': search,'replace': replace})
-		patterns.append({'search': search[:6] + '...' + search[-4:], 'replace': replace})
-		patterns.append({'search': '0x000000000000000000000000' + search[2:], 'replace': replace})
-		patterns.append({'search': '000000000000000000000000' + search[2:],'replace': replace})		
+
+def search_and_replace_function(line):
+	sig = line.split('::')[1].split('(')[0]
+	if len(sig) == 8:
 		
+		if not sig in functions:
+			rsp = requests.get(f'https://raw.githubusercontent.com/ethereum-lists/4bytes/master/signatures/{sig}')
+			if rsp.status_code == 404:
+				functions[sig] = sig
+			else:
+				functions[sig] = rsp.text
+		
+		fname = functions[sig]
+		i = fname.find('(')
+		if i != -1:
+			fname = fname[:i]
+		line = line.replace(sig, fname)
+	
+	return line
+
+
+def save_functions():
+	print('Functions cache updated, saving...')
+	with open("patterns_functions.txt", 'w') as f:
+		for search, replace in sorted(functions.items()):
+			f.write(search)
+			f.write('\t')
+			f.write(replace)
+			f.write('\n')
+
+
+patterns = {}
+functions = {}
+
+load_patterns(patterns, ['patterns_escape_sequences', 'patterns'])
+load_patterns(functions, ['patterns_functions'])
+functions_len = len(functions)
 
 fname = sys.argv[1]
 ftraces = open(fname, encoding ='utf8')
 
-traces = ""
+traces = '<ul class="tree">'
 for line in ftraces.read().splitlines():
+	if line == '':
+		continue
+
+	if '::' in line:
+		line = search_and_replace_function(line)
+
 	line = line.replace('<', '&lt;')
 	line = line.replace('>', '&gt;')
-	traces += '<p>' + line + '</p>'
+	
+	if '├─' in line or ('[' == line[0] and ')' == line[-1]):
+		traces += '<ul>'
+	
+	traces += '<li><a href="#">' + line + '</a>\n'
+	
+	if '└' in line:
+		traces += '</li></ul></li>'
+traces += '</ul>'
 
 traces = traces.replace('…', '...')
 traces = traces.replace('[', 'ESC')
 
 
-for pattern in patterns:
-	search = pattern['search']
-	replace = pattern['replace']
+for search, replace in patterns.items():
 	traces = re.sub(search, replace, traces, flags = re.IGNORECASE)
 	
 with open(fname + '.html', 'w', encoding ='utf8') as f:
@@ -54,9 +85,41 @@ with open(fname + '.html', 'w', encoding ='utf8') as f:
   <head>
     <style>
       p { margin: 0; }
+	  ul { padding-left: 0; }
+	  li { list-style-type: none; }
+	  /*ul.tree li ul { display: none; }*/
+	  ul.tree li.open > ul { display: block; }
+	  ul.tree li a { color: white; text-decoration: none; }
     </style>
   </head>
   <body style="background-color:black;color:white;font-family:monospace">
 """);
 	f.write(traces)
+	f.write("""
+<script>
+window.addEventListener("load", function(){
+var tree = document.querySelectorAll('ul.tree a:not(:last-child)');
+for(var i = 0; i < tree.length; i++){
+    tree[i].addEventListener('click', function(e) {
+        var parent = e.target.parentElement;
+        var classList = parent.classList;
+        if(classList.contains("open")) {
+            classList.remove('open');
+            var opensubs = parent.querySelectorAll(':scope .open');
+            for(var i = 0; i < opensubs.length; i++){
+                opensubs[i].classList.remove('open');
+            }
+        } else {
+            classList.add('open');
+        }
+        e.preventDefault();
+    });
+}
+});
+</script>
+""")
 	f.write('</body></html>')
+
+
+if len(functions) != functions_len:
+	save_functions()
