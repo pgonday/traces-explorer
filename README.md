@@ -15,6 +15,4 @@ It will generate an html file traces.txt.html with:
 - function addresses replaced by function names
 - contract addresses replaced by contract names
 
-# TODO
-
-Add expand/collapse for tree with only the error path expanded
+The nodes are expandables, at start only the error path is expanded.
