@@ -53,24 +53,42 @@ fname = sys.argv[1]
 ftraces = open(fname, encoding ='utf8')
 
 traces = '<ul class="tree">'
+level = 0
+prev_line = ''
+started = False
 for line in ftraces.read().splitlines():
 	if line == '':
 		continue
-
-	if '::' in line:
+	
+	if not started:
+		if '[' in line and line[-1] == ')':
+			started = True
+		else:
+			traces += '<li>' + line + '</li>'
+			continue
+		
+	new_level = line.count('├') + line.count('│') + line.count('└')
+	if level != new_level:
+		if new_level > level:
+			if '31m' in prev_line:
+				traces += '<ul>'
+			else:
+				traces += '<ul style="display: none;">'
+		else:
+			traces += '</li></ul>'
+	else:
+		if level > 0:
+			traces += '</li>'
+	level = new_level
+	
+	if '::' in line:		
 		line = search_and_replace_function(line)
-
-	line = line.replace('<', '&lt;')
-	line = line.replace('>', '&gt;')
 	
-	if '├─' in line or ('[' == line[0] and ')' == line[-1]):
-		traces += '<ul>'
+	traces += '<li><div>' + line + '</div>'
 	
-	traces += '<li><a href="#">' + line + '</a>\n'
+	prev_line = line
 	
-	if '└' in line:
-		traces += '</li></ul></li>'
-traces += '</ul>'
+traces += '</li></ul>'
 
 traces = traces.replace('…', '...')
 traces = traces.replace('[', 'ESC')
@@ -83,13 +101,11 @@ with open(fname + '.html', 'w', encoding ='utf8') as f:
 	f.write("""
 <html>
   <head>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <style>
       p { margin: 0; }
 	  ul { padding-left: 0; }
-	  li { list-style-type: none; }
-	  /*ul.tree li ul { display: none; }*/
-	  ul.tree li.open > ul { display: block; }
-	  ul.tree li a { color: white; text-decoration: none; }
+	  li { list-style-type: none; cursor: hand; }
     </style>
   </head>
   <body style="background-color:black;color:white;font-family:monospace">
@@ -97,24 +113,11 @@ with open(fname + '.html', 'w', encoding ='utf8') as f:
 	f.write(traces)
 	f.write("""
 <script>
-window.addEventListener("load", function(){
-var tree = document.querySelectorAll('ul.tree a:not(:last-child)');
-for(var i = 0; i < tree.length; i++){
-    tree[i].addEventListener('click', function(e) {
-        var parent = e.target.parentElement;
-        var classList = parent.classList;
-        if(classList.contains("open")) {
-            classList.remove('open');
-            var opensubs = parent.querySelectorAll(':scope .open');
-            for(var i = 0; i < opensubs.length; i++){
-                opensubs[i].classList.remove('open');
-            }
-        } else {
-            classList.add('open');
-        }
-        e.preventDefault();
-    });
-}
+$(document).ready(function () {
+    $("li").on("click", function (e) {
+		e.stopPropagation();
+		$(this).children('ul').toggle();       
+	});
 });
 </script>
 """)
