@@ -3,10 +3,11 @@ import decimal
 import json
 import requests
 import time
+import sys
 
 from web3 import Web3
 
-LENDING_POOL_ADDRESSES_PROVIDER_ADDRESS = '0xd05e3E715d945B59290df0ae8eF85c1BdB684744'
+LENDING_POOL_ADDRESSES_PROVIDER_ADDRESS = '0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5'
 
 
 env = {}
@@ -14,7 +15,7 @@ with open('.env') as f:
 	for line in f:
 		name, value = line.split('=')
 		env[name] = value
-apikey = env['POLYGONSCAN_API_KEY']
+apikey = env['ETHERSCAN_API_KEY']
 
 
 def load_json(filename):
@@ -24,8 +25,9 @@ def load_json(filename):
 
 
 def load(action, address):
-	time.sleep(1) # Rate limit PolygonScan API
-	rsp = requests.get(f'https://api.polygonscan.com/api?module=contract&action={action}&address={address}&apikey={apikey}')
+	if len(apikey) == 0:
+		time.sleep(1) # Rate limit EtherScan API
+	rsp = requests.get(f'https://api.etherscan.io/api?module=contract&action={action}&address={address}&apikey={apikey}')
 	return json.loads(rsp.content)['result']
 
 
@@ -52,6 +54,7 @@ def get_proxy_implementation(address):
 def get_asset(address):
 	token = w3.eth.contract(address = address, abi = erc20_abi)
 	symbol = token.functions.symbol().call()
+	print(symbol, file=sys.stderr)
 	impl = get_proxy_implementation(address)
 	if impl:
 		display_address_variants(impl, symbol)
@@ -79,6 +82,7 @@ def get_contract(address, contract_name = ''):
 		source = load_source_code(impl if impl else address)
 		contract_name = source[0]['ContractName']
 	
+	print(contract_name, file=sys.stderr)
 	if impl:
 		display_address_variants(address, contract_name + ' (Proxy)')
 		display_address_variants(impl, contract_name)
@@ -86,7 +90,7 @@ def get_contract(address, contract_name = ''):
 		display_address_variants(address, contract_name)
 	
 
-w3 = Web3(Web3.HTTPProvider('https://polygon-rpc.com'))
+w3 = Web3(Web3.HTTPProvider('https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161'))
 
 lending_pool_addresses_provider = w3.eth.contract(address = LENDING_POOL_ADDRESSES_PROVIDER_ADDRESS, abi = load_json('lendingpooladdressesprovider'))
 lending_pool_address = lending_pool_addresses_provider.functions.getLendingPool().call()
@@ -122,12 +126,5 @@ get_contract(lending_pool_addresses_provider.address)
 get_contract(lending_pool.address)
 get_contract(lending_pool_addresses_provider.functions.getPriceOracle().call())
 get_contract(lending_pool_addresses_provider.functions.getAddress('0x1000000000000000000000000000000000000000000000000000000000000000').call())
-get_contract('0x357D51124f59836DeD84c8a1730D72B749d8BC23') # IncentivesController
-get_contract('0xCC7dF14A5dE0145cE3438CBf29dF1cA84e56a9B5', 'ValidationLogic') # ValidationLogic library
-
-# Contracts specifics
-display_address_variants('0x185a4dc360ce69bdccee33b3784b0282f7961aea', 'positionsManager')
-display_address_variants('0xCe71065D4017F316EC606Fe4422e11eB2c47c246', 'marketsManager')
-
-# Constants
-print('115792089237316195423570985008687907853269984665640564039457584007913129639935', 'MAX_UINT256', sep = '\t')
+#get_contract('0x357D51124f59836DeD84c8a1730D72B749d8BC23') # IncentivesController
+#get_contract('0xCC7dF14A5dE0145cE3438CBf29dF1cA84e56a9B5', 'ValidationLogic') # ValidationLogic library
